@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const validator = require("validator");
 
 const userSchema = new mongoose.Schema(
   {
@@ -7,7 +8,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
       minlength: 4,
-      manlength: 50,
+      maxlength: 50,
     },
     lastName: {
       type: String,
@@ -18,13 +19,18 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
+      validate(value) {
+        if (!validator.isEmail(value)) {
+          throw new Error("Invalid email added: " + value);
+        }
+      },
     },
     password: {
       type: String,
-      required: true,
+      required: true, 
       validate(value) {
-        if (value > 20) {
-          throw new Error("Are you kidding me it's too long");
+        if (!validator.isStrongPassword(value)) {
+          throw new Error("Enter a Strong password" + value);
         }
       },
     },
@@ -33,7 +39,7 @@ const userSchema = new mongoose.Schema(
       min: 18,
       validate(value) {
         if (value > 100) {
-          throw new Error("When will you retire bro");
+          throw new Error("When will you retire bro?");
         }
       },
     },
@@ -49,6 +55,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default:
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWhb4OhEFu7tfWc4e_iY3KiSSAwjIm6LD5TA&s",
+      validate(value) {
+        if (!validator.isURL(value)) {
+          throw new Error("Invalid Photo URL added: " + value);
+        }
+      },
     },
     about: {
       type: String,
@@ -58,7 +69,7 @@ const userSchema = new mongoose.Schema(
       type: [String],
       validate(value) {
         if (value.length > 10) {
-          throw new Error("Skills Overloaded You are dangerous");
+          throw new Error("Skills Overloaded — You are dangerous");
         }
       },
     },
