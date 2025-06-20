@@ -19,6 +19,8 @@ const userAuth = async (req, res, next) => {
       throw new Error("User not found");
     }
 
+    req.user = user;
+
     next();
   } catch (err) {
     res.status(400).send("ERROR: " + err.message);
@@ -26,7 +28,6 @@ const userAuth = async (req, res, next) => {
 };
 
 module.exports = {
-  adminAuth,
   userAuth,
 };
 

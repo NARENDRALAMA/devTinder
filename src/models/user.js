@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true, 
+      required: true,
       validate(value) {
         if (!validator.isStrongPassword(value)) {
           throw new Error("Enter a Strong password" + value);
@@ -76,6 +76,14 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.methods.getJWT = async function () {
+  const user = this;
+
+  const token = await jwt.sign({ _id: user.id }, "DEV@Tinder$790", {
+    expiresIn: "7d",
+  });
+};
 
 const User = mongoose.model("User", userSchema);
 
