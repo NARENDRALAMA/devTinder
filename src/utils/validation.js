@@ -31,7 +31,18 @@ const validateEditProfileData = (req) => {
   return isEditAllowed;
 };
 
+const validateForgetPassword = (req) => {
+  const { emailId, newPassword } = req.body;
+
+  if (!validator.isEmail(emailId)) {
+    throw new Error("Email is not valid");
+  } else if (!validator.isStrongPassword(newPassword)) {
+    throw new Error("Please Enter a Strong Password");
+  }
+};
+
 module.exports = {
   validateSignUpData,
   validateEditProfileData,
+  validateForgetPassword,
 };
