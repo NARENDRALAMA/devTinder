@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       min: 18,
       validate(value) {
-        if (value > 100) {
+        if (value > 2000000) {
           throw new Error("When will you retire bro?");
         }
       },

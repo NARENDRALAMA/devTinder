@@ -26,3 +26,5 @@
 -GET /feed -Gets you the profiles of other users on platform
 
 Status: ignore, intrested, accepted, rejected
+
+

@@ -4,6 +4,7 @@ const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const USER_SAFE_DATA = "firstName lastName photoUrl age gender about skills";
 const User = require("../models/user");
+
 //Get all the pending connection request for the loggedIn user
 
 userRouter.get("/user/requests/received", userAuth, async (req, res) => {
@@ -12,8 +13,14 @@ userRouter.get("/user/requests/received", userAuth, async (req, res) => {
 
     const connectionRequests = await ConnectionRequest.find({
       toUserId: loggedInUser._id,
-      status: "intrested",
-    }).populate("fromUserId", ["firstName", "lastName"]);
+      status: "interested",
+    }).populate("fromUserId", [
+      "firstName",
+      "lastName",
+      "photoUrl",
+      "age",
+      "gender",
+    ]);
 
     res.json({
       message: "Data fetched sucessfully",
@@ -37,8 +44,14 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
       .populate("fromUserId", USER_SAFE_DATA)
       .populate("toUserId", USER_SAFE_DATA);
 
+    if (connectionRequests.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "No connections found", data: [] });
+    }
+
     const data = connectionRequests.map((row) => {
-      if (row.fromUserId._id === loggedInUser._id) {
+      if (row.fromUserId._id.equals(loggedInUser._id)) {
         return row.toUserId;
       }
       return row.fromUserId;

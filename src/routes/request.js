@@ -13,7 +13,7 @@ requestRouter.post(
       const toUserId = req.params.toUserId;
       const status = req.params.status;
 
-      const allowedStatus = ["ignored", "intrested"];
+      const allowedStatus = ["ignored", "interested"];
 
       if (!allowedStatus.includes(status)) {
         return res
@@ -30,6 +30,17 @@ requestRouter.post(
       }
 
       //IF there is an existing Connection Request
+
+      // 👇 ADD THIS LINE HERE — just before checking for existing requests
+      console.log(
+        "Existing:",
+        await ConnectionRequest.findOne({
+          $or: [
+            { fromUserId, toUserId },
+            { fromUserId: toUserId, toUserId: fromUserId },
+          ],
+        })
+      );
 
       const existingConnectionRequest = await ConnectionRequest.findOne({
         $or: [
@@ -81,7 +92,7 @@ requestRouter.post(
       const connectionRequest = await ConnectionRequest.findOne({
         _id: requestId,
         toUserId: loggedInUser._id,
-        status: "intrested",
+        status: "interested",
       });
 
       if (!connectionRequest) {
