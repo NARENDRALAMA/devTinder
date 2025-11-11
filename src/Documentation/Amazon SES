@@ -1,0 +1,143 @@
+## 🧠 Big Picture
+
+You wanted to use **Amazon SES (Simple Email Service)** to send emails from your own domain (`dev-tinder.org`) — not from Gmail or random mail servers.
+To make that happen, you needed to prove that:
+
+1. You really **own** the domain.
+2. You’re **authorized** to use AWS SES safely.
+3. Your **app** can send emails through AWS **without exposing your root account**.
+
+So everything you did had a reason.
+
+---
+
+## ⚙️ Step-by-Step Summary
+
+### 🧩 1. Bought your domain (`dev-tinder.org`)
+
+You bought it from **Cloudflare**, which means Cloudflare is now your **DNS manager** (it holds your DNS records — the "internet address book" for your domain).
+
+---
+
+### 🔐 2. Went to AWS SES and created an **Identity**
+
+You told AWS:
+
+> “Hey AWS, I own `dev-tinder.org`, and I want to send emails as `noreply@dev-tinder.org`.”
+
+SES replied:
+
+> “Cool. But prove you own this domain.”
+
+So it gave you some **DNS records** (TXT + CNAME) that you added in Cloudflare.
+This acted like a **secret handshake** to verify you’re the real owner.
+
+✅ Once SES detected those records, your identity was verified.
+
+---
+
+### 🧰 3. Created an **IAM User**
+
+Now you said:
+
+> “I don’t want my root AWS account to send emails — that’s too risky. Let me create a mini user.”
+
+So you made an **IAM user** (like a smaller admin) and gave it **only permission** for SES.
+
+This follows the principle of **Least Privilege** — only allow what’s needed.
+
+---
+
+### 🧾 4. Generated **Access Keys** for the IAM user
+
+You created:
+
+- `Access Key ID`
+- `Secret Access Key`
+
+These are **programmatic credentials** — your app can use them to talk to AWS directly.
+Think of them like an **API key + password** pair for machines.
+
+So your app doesn’t use the console username/password — it uses these keys to authenticate.
+
+---
+
+### 💻 5. Created the `sesClient.js` file
+
+This file stores configuration for connecting to AWS:
+
+```js
+const { SESClient } = require("@aws-sdk/client-ses");
+const sesClient = new SESClient({
+  region: "ap-southeast-2",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+```
+
+This is the **client** your app uses to send requests to AWS SES.
+
+---
+
+### ✉️ 6. Wrote the `createSendEmailCommand` function
+
+This function builds a **SendEmailCommand** object with:
+
+- recipient address
+- sender address
+- subject
+- body (HTML + text)
+
+It’s like packaging your email into a “letter envelope” for SES.
+
+---
+
+### 🚀 7. Wrote the `run()` function
+
+This is the part that **actually sends** the email by doing:
+
+```js
+await sesClient.send(sendEmailCommand);
+```
+
+If SES approves your credentials and verified identity, it delivers the email.
+
+---
+
+## 🧩 Why we created the Access Key
+
+Because your **app** (not you manually) will talk to AWS.
+
+- Humans (you) → use **username & password** in AWS Console.
+- Apps (like your backend) → use **Access Key ID & Secret** to authenticate automatically.
+
+So, the access key tells AWS:
+
+> “Hey, this request is coming from my trusted IAM user who has permission to send emails.”
+
+Without it, AWS wouldn’t know who’s calling their API — and would reject the request.
+
+---
+
+## 🔒 Summary of what you’ve achieved
+
+| Step | What you did                  | Why it mattered                        |
+| ---- | ----------------------------- | -------------------------------------- |
+| 1️⃣   | Bought domain on Cloudflare   | You now own an internet domain         |
+| 2️⃣   | Added TXT/CNAME records       | Proved to AWS you own that domain      |
+| 3️⃣   | Created IAM user              | Safer than using your root AWS account |
+| 4️⃣   | Generated access key          | Let your **app** authenticate securely |
+| 5️⃣   | Made `sesClient.js`           | Set up connection to AWS SES           |
+| 6️⃣   | Made `createSendEmailCommand` | Created the “email request object”     |
+| 7️⃣   | Called `sesClient.send()`     | Actually sent the email through AWS    |
+
+---
+
+If you want, I can now show you **what happens next** —
+✅ how to request **production access** (so you can email _anyone_, not just verified ones),
+and
+✅ how to use environment variables to hide your secret keys safely.
+
+Want me to guide you through that part next?
