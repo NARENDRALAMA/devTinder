@@ -1,9 +1,9 @@
-require("dotenv").config();
 const express = require("express");
 const User = require("./models/user");
 const connectDB = require("./config/database");
 const app = express();
 const cors = require("cors");
+require("dotenv").config();
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { userAuth } = require("./middlewares/auth");
@@ -113,7 +113,7 @@ app.patch("/user/:userId", async (req, res) => {
 connectDB()
   .then(() => {
     console.log("Database connection established...");
-    app.listen(7777, () => {
+    app.listen(process.env.PORT, () => {
       console.log("Server is sucessfully listening on port 7777...");
     });
   })
