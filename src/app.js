@@ -3,10 +3,15 @@ const User = require("./models/user");
 const connectDB = require("./config/database");
 const app = express();
 const cors = require("cors");
-require("dotenv").config();
+
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { userAuth } = require("./middlewares/auth");
+
+require("dotenv").config();
+
+require("./utils/cornjob");
+
 app.use(
   cors({
     origin: "http://localhost:5173",
