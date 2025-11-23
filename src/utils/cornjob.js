@@ -3,10 +3,12 @@ const { subDays, startOfDay, endOfDay } = require("date-fns");
 const sendEmail = require("./sendEmail");
 const ConnectionRequest = require("../models/connectionRequest");
 
-cron.schedule("52 10 * * *", async () => {
+//This job will run every day at 8 AM every day
+cron.schedule("0 8 * * *", async () => {
   // Send emails to all people who got requests the previous day
 
   try {
+    console.log("Hello");
     const yesterday = subDays(new Date(), 1);
     const yesterdayStart = startOfDay(yesterday);
 
@@ -24,13 +26,15 @@ cron.schedule("52 10 * * *", async () => {
       ...new Set(pendingRequests.map((req) => req.toUserId.emailId)),
     ];
 
+    console.log(listOfEmails);
+
     for (const email of listOfEmails) {
       //send Emails
 
       try {
         const res = await sendEmail.run(
-          "New Friend Requests pending for " +
-            "There are many friedn Requests pending, please login to DevTinder.org and accect or reject the request"
+          "New Friend Requests pending for " + email,
+          "There are many friend Requests pending, please login to DevTinder.org and accect or reject the request"
         );
         console.log(res);
       } catch (err) {

@@ -80,6 +80,21 @@ const userSchema = new mongoose.Schema(
         }
       },
     },
+    plan: {
+      type: String,
+      enum: ["free", "silver", "gold"],
+      default: "free",
+    },
+    stripeCustomerId: {
+      type: String,
+    },
+    subscriptionId: {
+      type: String,
+    },
+
+    currentPeriodEnd: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
