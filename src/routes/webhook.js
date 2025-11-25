@@ -3,8 +3,7 @@ const Striperouter = express.Router();
 const stripe = require("../utils/stripe");
 const User = require("../models/user");
 
-const endpointSecret =
-  "whsec_8563a1738fd33945137efb295da5d3d770114946909339b0fb079120fe570093";
+const endpointSecret = process.env.END_POINT_SECRET;
 
 Striperouter.post("/stripe", async (req, res) => {
   const sig = req.headers["stripe-signature"];
