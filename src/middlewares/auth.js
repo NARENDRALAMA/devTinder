@@ -4,7 +4,11 @@ const User = require("../models/user");
 const userAuth = async (req, res, next) => {
   //Read the cookie from the req.cookies
   try {
-    const { token } = req.cookies;
+    let token = req.cookies.token;
+
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
     if (!token) {
       return res.status(401).send("Please Login First");

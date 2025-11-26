@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const User = require("./models/user");
 const connectDB = require("./config/database");
@@ -7,8 +8,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { userAuth } = require("./middlewares/auth");
-
-require("dotenv").config();
+const webhookRouter = require("./routes/webhook");
 
 require("./utils/cornjob");
 
@@ -19,13 +19,7 @@ app.use(
   })
 );
 
-app.use(
-  express.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf.toString();
-    },
-  })
-);
+app.use("/webhook", express.raw({ type: "application/json" }), webhookRouter);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -41,6 +35,7 @@ app.use("/", profileRouter);
 app.use("/", requestRouter);
 app.use("/", userRouter);
 app.use("/", payment);
+app.use("/webhook", webhookRouter);
 
 //Adding the user to the database
 
