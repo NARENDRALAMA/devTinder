@@ -12,9 +12,18 @@ const webhookRouter = require("./routes/webhook");
 
 require("./utils/cornjob");
 
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? ["https://dev-tinder.org", "https://www.dev-tinder.org"]
+    : [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+      ];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   })
 );

@@ -1,7 +1,6 @@
 const express = require("express");
 const paymentRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
-
 const stripeInstance = require("../utils/stripe");
 
 const priceId_silver = "price_1SVhasLiL0Js2Cy2KBLqd41I";
@@ -20,6 +19,13 @@ paymentRouter.post("/create-checkout-session", userAuth, async (req, res) => {
       return res.status(400).json({ error: "Invalid plan selected" });
     }
 
+    // Use origin from request, fallback to localhost
+    const frontendUrl =
+      req.headers.origin || process.env.FRONTEND_URL || "http://localhost:5173";
+
+    console.log(`Creating checkout session for plan: ${plan}`);
+    console.log(`Using frontend URL: ${frontendUrl}`);
+
     const session = await stripeInstance.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "subscription",
@@ -31,14 +37,22 @@ paymentRouter.post("/create-checkout-session", userAuth, async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: "http://localhost:5173/success",
-      cancel_url: "http://localhost:5173/cancel",
+      success_url: `${frontendUrl}/success`,
+      cancel_url: `${frontendUrl}/cancel`,
     });
 
-    res.json({ id: session.id });
+    console.log(`Session created successfully: ${session.id}`);
+
+    res.json({
+      id: session.id,
+      url: session.url,
+    });
   } catch (err) {
     console.error("Error creating checkout session:", err);
-    res.status(500).json({ error: "Failed to create checkout session" });
+    res.status(500).json({
+      error: "Failed to create checkout session",
+      details: err.message,
+    });
   }
 });
 
