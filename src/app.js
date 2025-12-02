@@ -43,7 +43,7 @@ app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);
 app.use("/", userRouter);
-app.use("/", payment);
+app.use("/api", payment);
 app.use("/webhook", webhookRouter);
 
 //Adding the user to the database
