@@ -27,10 +27,8 @@ app.use(
   })
 );
 
-// IMPORTANT: Webhook route MUST come BEFORE express.json()
 app.use("/webhook", express.raw({ type: "application/json" }), webhookRouter);
 
-// Now add JSON parser for other routes
 app.use(express.json());
 app.use(cookieParser());
 
@@ -48,14 +46,13 @@ app.use("/api", payment);
 
 connectDB()
   .then(() => {
-    console.log("Database connection established...");
+    console.log(" Database connected");
     app.listen(process.env.PORT, () => {
-      console.log(
-        `Server is successfully listening on port ${process.env.PORT}...`
-      );
+      console.log(` Server running on port ${process.env.PORT}`);
+      console.log(` Environment: ${process.env.NODE_ENV || "development"}`);
     });
   })
   .catch((err) => {
-    console.error("Database cannot be connected!!");
-    console.log(err);
+    console.error(" Database connection failed:", err.message);
+    process.exit(1);
   });

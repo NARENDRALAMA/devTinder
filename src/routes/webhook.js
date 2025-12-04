@@ -5,17 +5,33 @@ const User = require("../models/user");
 
 const endpointSecret = process.env.END_POINT_SECRET;
 
+Striperouter.get("/test", (req, res) => {
+  res.json({ message: "Webhook route is working!" });
+});
+
 Striperouter.post("/stripe", async (req, res) => {
   const sig = req.headers["stripe-signature"];
+
+  if (!sig) {
+    console.error(" Webhook Error: No stripe-signature header");
+    return res.status(400).send("No signature");
+  }
+
+  if (!endpointSecret) {
+    console.error(" Webhook Error: END_POINT_SECRET not configured");
+    return res.status(500).send("Webhook secret not configured");
+  }
+
   let event;
 
   try {
-    // req.body is already raw because of express.raw() middleware
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
+    console.error(" Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  console.log(` Webhook received: ${event.type} [${event.id}]`);
 
   try {
     switch (event.type) {
@@ -32,89 +48,132 @@ Striperouter.post("/stripe", async (req, res) => {
         break;
 
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        // Silently ignore unhandled events
+        break;
     }
 
-    // Fixed: return proper success response
     res.json({ received: true });
   } catch (err) {
-    console.error("Error while handling webhook:", err);
+    console.error(` Webhook handler error [${event.type}]:`, err.message);
     return res.status(500).send("Webhook handler error");
   }
 });
 
 async function handleCheckoutCompleted(session) {
-  console.log("checkout.session.completed received");
-
   const userId = session.client_reference_id;
   const plan = session.metadata?.plan;
   const subscriptionId = session.subscription;
   const customerId = session.customer;
 
+  // Validation
   if (!userId || !plan || !subscriptionId || !customerId) {
-    console.error("Missing data in checkout.session.completed");
+    console.error(" Checkout completed: Missing required data", {
+      hasUserId: !!userId,
+      hasPlan: !!plan,
+      hasSubscriptionId: !!subscriptionId,
+      hasCustomerId: !!customerId,
+    });
     return;
   }
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  try {
+    // Retrieve subscription details
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  const user = await User.findById(userId);
-  if (!user) {
-    console.error("User not found for checkout.session.completed");
-    return;
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          plan: plan,
+          subscriptionId: subscriptionId,
+          stripeCustomerId: customerId,
+          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        },
+      },
+      {
+        new: true,
+        runValidators: false,
+      }
+    );
+
+    if (!updatedUser) {
+      console.error(` Checkout completed: User not found [${userId}]`);
+      return;
+    }
+
+    console.log(
+      ` User upgraded: ${
+        updatedUser.emailId
+      } → ${plan.toUpperCase()} [${subscriptionId}]`
+    );
+  } catch (error) {
+    console.error(" Checkout completed error:", error.message);
+    throw error;
   }
-
-  user.plan = plan;
-  user.subscriptionId = subscriptionId;
-  user.stripeCustomerId = customerId;
-  user.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-
-  await user.save();
-  console.log(`User ${user.emailId} is now ${plan.toUpperCase()}`);
 }
 
 async function handleInvoicePaymentSucceeded(invoice) {
-  console.log("invoice.payment_succeeded received");
-
-  const subscriptionId = invoice.subscription;
+  const subscriptionId =
+    invoice.subscription || invoice.lines?.data?.[0]?.subscription;
 
   if (!subscriptionId) {
-    console.error("No subscriptionId on invoice");
+    console.error(" Invoice payment succeeded: No subscription ID");
     return;
   }
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const customerId = subscription.customer;
-  const user = await User.findOne({ stripeCustomerId: customerId });
-  if (!user) {
-    console.error("User not found for invoice.payment_succeeded");
-    return;
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const customerId = subscription.customer;
+
+    const user = await User.findOne({ stripeCustomerId: customerId });
+
+    if (!user) {
+      console.error(
+        ` Invoice payment succeeded: User not found [${customerId}]`
+      );
+      return;
+    }
+
+    user.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    await user.save();
+
+    // Success log
+    console.log(
+      ` Subscription renewed: ${
+        user.emailId
+      } → ${user.plan.toUpperCase()} [${subscriptionId}]`
+    );
+  } catch (error) {
+    console.error(" Invoice payment succeeded error:", error.message);
+    throw error;
   }
-
-  user.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-  await user.save();
-
-  console.log(`Subscription renewed for ${user.emailId}, plan = ${user.plan}`);
 }
 
 async function handleSubscriptionDeleted(subscription) {
-  console.log("customer.subscription.deleted received");
   const customerId = subscription.customer;
 
-  const user = await User.findOne({ stripeCustomerId: customerId });
+  try {
+    const user = await User.findOne({ stripeCustomerId: customerId });
 
-  if (!user) {
-    console.error("User not found for subscription.deleted");
-    return;
+    if (!user) {
+      console.error(` Subscription deleted: User not found [${customerId}]`);
+      return;
+    }
+
+    user.plan = "free";
+    user.subscriptionId = null;
+    user.currentPeriodEnd = null;
+
+    await user.save();
+
+    console.log(
+      ` Subscription canceled: ${user.emailId} → FREE [${subscription.id}]`
+    );
+  } catch (error) {
+    console.error(" Subscription deleted error:", error.message);
+    throw error;
   }
-
-  user.plan = "free";
-  user.subscriptionId = null;
-  user.currentPeriodEnd = null;
-
-  await user.save();
-
-  console.log(`Subscription canceled, user downgraded: ${user.emailId}`);
 }
 
 module.exports = Striperouter;
