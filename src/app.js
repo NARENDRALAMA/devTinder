@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { userAuth } = require("./middlewares/auth");
 const webhookRouter = require("./routes/webhook");
+const initializeSocket = require("./utils/socket");
 const http = require("http");
 
 require("./utils/cornjob");
@@ -46,15 +47,7 @@ app.use("/", userRouter);
 app.use("/api", payment);
 
 const server = http.createServer(app);
-
-const socket = require("socket.io");
-
-const io = socket(server, {
-  cors: {
-    origin: "http://localhost:5173",
-  },
-  screenTop,
-});
+initializeSocket(server);
 
 connectDB()
   .then(() => {
