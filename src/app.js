@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { userAuth } = require("./middlewares/auth");
 const webhookRouter = require("./routes/webhook");
+const http = require("http");
 
 require("./utils/cornjob");
 
@@ -44,10 +45,21 @@ app.use("/", requestRouter);
 app.use("/", userRouter);
 app.use("/api", payment);
 
+const server = http.createServer(app);
+
+const socket = require("socket.io");
+
+const io = socket(server, {
+  cors: {
+    origin: "http://localhost:5173",
+  },
+  screenTop,
+});
+
 connectDB()
   .then(() => {
     console.log(" Database connected");
-    app.listen(process.env.PORT, () => {
+    server.listen(process.env.PORT, () => {
       console.log(` Server running on port ${process.env.PORT}`);
       console.log(` Environment: ${process.env.NODE_ENV || "development"}`);
     });

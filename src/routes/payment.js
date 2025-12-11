@@ -19,7 +19,7 @@ paymentRouter.post("/create-checkout-session", userAuth, async (req, res) => {
       return res.status(400).json({ error: "Invalid plan selected" });
     }
 
-    // Use origin from request, fallback to localhost
+    // Using  origin from request frst and the front-end_url if not then fallback to localhost
     const frontendUrl =
       req.headers.origin || process.env.FRONTEND_URL || "http://localhost:5173";
 
