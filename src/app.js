@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { userAuth } = require("./middlewares/auth");
 const webhookRouter = require("./routes/webhook");
+const { chatRouter } = require("./routes/chat");
 const initializeSocket = require("./utils/socket");
 const http = require("http");
 
@@ -44,6 +45,7 @@ app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);
 app.use("/", userRouter);
+app.use("/", chatRouter);
 app.use("/api", payment);
 
 const server = http.createServer(app);
