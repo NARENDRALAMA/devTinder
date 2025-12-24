@@ -34,7 +34,7 @@ const initialiseSocket = (server) => {
         //Save message to the database
 
         try {
-          const roomId = getSecretRoomId({ userId, targetUserId });
+          const roomId = getSecretRoomId(userId, targetUserId);
           console.log(firstName + " " + text);
 
           let chat = await Chat.findOne({
@@ -51,7 +51,15 @@ const initialiseSocket = (server) => {
           chat.messages.push({ senderId: userId, text });
 
           await chat.save();
-          io.to(roomId).emit("messageReceived", { firstName, lastName, text });
+
+          const lastMessage = chat.messages[chat.messages.length - 1];
+
+          io.to(roomId).emit("messageReceived", {
+            firstName,
+            lastName,
+            text,
+            createdAt: lastMessage.createdAt,
+          });
         } catch (err) {
           console.log(err);
         }
