@@ -22,7 +22,7 @@ const initialiseSocket = (server) => {
     //Handle events
 
     socket.on("joinChat", ({ firstName, lastName, userId, targetUserId }) => {
-      const roomId = getSecretRoomId({ userId, targetUserId });
+      const roomId = getSecretRoomId(userId, targetUserId);
 
       console.log(firstName + " Joined Room :" + roomId);
       socket.join(roomId);
