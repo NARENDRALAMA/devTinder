@@ -3,6 +3,8 @@ const socket = require("socket.io");
 const crypto = require("crypto");
 const { ListTemplatesCommand } = require("@aws-sdk/client-ses");
 const { Chat } = require("../models/chat");
+const { ConnectionRequest } = require("../models/connectionRequest");
+const User = require("../models/user");
 
 const getSecretRoomId = (userId, targetUserId) => {
   return crypto
@@ -10,6 +12,8 @@ const getSecretRoomId = (userId, targetUserId) => {
     .update([userId, targetUserId].sort().join("-"))
     .digest("hex");
 };
+
+const onlineUsers = new Map();
 
 const initialiseSocket = (server) => {
   const io = socket(server, {
@@ -21,21 +25,73 @@ const initialiseSocket = (server) => {
   io.on("connection", (socket) => {
     //Handle events
 
-    socket.on("joinChat", ({ firstName, lastName, userId, targetUserId }) => {
-      const roomId = getSecretRoomId(userId, targetUserId);
+    socket.on(
+      "joinChat",
+      async ({ firstName, lastName, userId, targetUserId }) => {
+        const roomId = getSecretRoomId(userId, targetUserId);
 
-      console.log(firstName + " Joined Room :" + roomId);
-      socket.join(roomId);
-    });
+        //Marking the user as online
+        onlineUsers.set(userId, socket.id);
+
+        console.log(userId + " is online with socket id :" + socket.id);
+
+        //Updating lastSeen to null when user is online
+        await User.findByIdAndUpdate(userId, { lastSeen: null });
+
+        //Joining the chat room
+        socket.join(roomId);
+        console.log(firstName + " Joined Room :" + roomId);
+
+        //Notify everyone in the room that user is online
+
+        io.to(roomId).emit("userOnlineStatus", {
+          userId: userId,
+          isOnline: true,
+          lastSeen: null,
+        });
+
+        //Checking if the target user is online and sending their status back
+
+        const targetUser = await User.findById(targetUserId);
+        const isTargetOnline = onlineUsers.has(targetUserId);
+
+        console.log("Target user online status:", {
+          targetUserId,
+          isOnline: isTargetOnline,
+          lastSeen: targetUser.lastSeen,
+        });
+
+        socket.emit("userOnlineStatus", {
+          userId: targetUserId,
+          isOnline: isTargetOnline,
+          lastSeen: targetUser.lastSeen,
+        });
+      }
+    );
 
     socket.on(
       "sendMessage",
-      async ({ firstName, lastName, userId, targetUserId, text }) => {
+      async ({ firstName, lastName, photoUrl, userId, targetUserId, text }) => {
         //Save message to the database
 
         try {
           const roomId = getSecretRoomId(userId, targetUserId);
           console.log(firstName + " " + text);
+
+          //Checking if the userId and targetUserId are friends:
+
+          const areFriends = await ConnectionRequest.findOne({
+            status: "accepted",
+            $or: [
+              { fromUserId: userId, toUserId: targetUserId },
+              { fromUserId: targetUserId, toUserId: userId },
+            ],
+          });
+
+          if (!areFriends) {
+            console.log("Users are not friends. Message not sent.");
+            return;
+          }
 
           let chat = await Chat.findOne({
             participants: { $all: [userId, targetUserId] },
@@ -57,6 +113,7 @@ const initialiseSocket = (server) => {
           io.to(roomId).emit("messageReceived", {
             firstName,
             lastName,
+            photoUrl,
             text,
             createdAt: lastMessage.createdAt,
           });
@@ -66,7 +123,33 @@ const initialiseSocket = (server) => {
       }
     );
 
-    socket.on("disconnect", () => {});
+    socket.on("disconnect", async () => {
+      console.log("User disconnected:", socket.id);
+
+      for (const [userId, socketId] of onlineUsers.entries()) {
+        if (socketId == socket.id) {
+          console.log("User went offline", userId);
+
+          onlineUsers.delete(userId);
+
+          const lastSeen = new Date();
+
+          await User.findByIdAndUpdate(userId, { lastSeen });
+
+          //Notify all rooms that the user is offline now
+
+          io.emit("userOnlineStatus", {
+            userId,
+            isOnline: false,
+            lastSeen,
+          });
+
+          break;
+        }
+      }
+
+      console.log("Currently online users:", Array.from(onlineUsers.keys()));
+    });
   });
 };
 

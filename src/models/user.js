@@ -95,6 +95,10 @@ const userSchema = new mongoose.Schema(
     currentPeriodEnd: {
       type: Date,
     },
+    lastSeen: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
