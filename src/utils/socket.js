@@ -3,7 +3,7 @@ const socket = require("socket.io");
 const crypto = require("crypto");
 const { ListTemplatesCommand } = require("@aws-sdk/client-ses");
 const { Chat } = require("../models/chat");
-const { ConnectionRequest } = require("../models/connectionRequest");
+const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
 
 const getSecretRoomId = (userId, targetUserId) => {
