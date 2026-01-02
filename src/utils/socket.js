@@ -66,6 +66,37 @@ const initialiseSocket = (server) => {
           isOnline: isTargetOnline,
           lastSeen: targetUser.lastSeen,
         });
+
+        try {
+          const chat = await Chat.findOne({
+            participants: { $all: [userId, targetUserId] },
+          });
+
+          if (chat) {
+            let hasUpdates = false;
+
+            chat.messages.forEach((msg) => {
+              if (
+                msg.senderId.toString() === targetUserId &&
+                msg.status == "sent"
+              ) {
+                msg.status = "delivered";
+                msg.deliveredAt = new Date();
+                hasUpdates = true;
+              }
+            });
+
+            if (hasUpdates) {
+              await chat.save();
+
+              io.to(roomId).emit("messagesDelivered", {
+                userId: userId,
+              });
+            }
+          }
+        } catch (err) {
+          console.log("Error updating message status:", err);
+        }
       }
     );
 
@@ -104,24 +135,72 @@ const initialiseSocket = (server) => {
             });
           }
 
-          chat.messages.push({ senderId: userId, text });
+          const isTargetOnline = onlineUsers.has(targetUserId);
+
+          const messageStatus = isTargetOnline ? "delivered" : "sent";
+
+          chat.messages.push({
+            senderId: userId,
+            text,
+            status: messageStatus,
+            deliveredAt: isTargetOnline ? new Date() : null,
+          });
 
           await chat.save();
 
           const lastMessage = chat.messages[chat.messages.length - 1];
 
           io.to(roomId).emit("messageReceived", {
+            messageId: lastMessage._id,
             firstName,
             lastName,
             photoUrl,
             text,
             createdAt: lastMessage.createdAt,
+            status: lastMessage.status,
+            deliveredAt: lastMessage.deliveredAt,
+            seenAt: lastMessage.seenAt,
           });
         } catch (err) {
           console.log(err);
         }
       }
     );
+
+    socket.on("markAsSeen", async ({ userId, targetUserId }) => {
+      try {
+        const roomId = getSecretRoomId(userId, targetUserId);
+
+        const chat = await Chat.findOne({
+          participants: { $all: [userId, targetUserId] },
+        });
+
+        if (chat) {
+          let hasUpdates = false;
+
+          chat.messages.forEach((msg) => {
+            if (
+              msg.senderId.toString() === targetUserId &&
+              msg.status != "seen"
+            ) {
+              msg.status = "seen";
+              msg.seenAt = new Date();
+              hasUpdates = true;
+            }
+          });
+
+          if (hasUpdates) {
+            await chat.save();
+
+            io.to(roomId).emit("messagesSeen", {
+              userId: userId,
+            });
+          }
+        }
+      } catch (err) {
+        console.log("Error in markAsSeen:", err);
+      }
+    });
 
     socket.on("disconnect", async () => {
       console.log("User disconnected:", socket.id);
